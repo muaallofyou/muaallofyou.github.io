@@ -1,0 +1,457 @@
+<!DOCTYPE html>
+<html lang="zh-Hant-TW">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>格雷伊的認知邊界</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Serif+TC:wght@600;700&family=Noto+Sans+TC:wght@400;500;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  /* Layout: one centered column — title, a three-slot toolbar (count | copy | view toggle), then the editor/preview panel */
+  /* Single theme by choice: muted coffee-grey (greige) wood, latte accent, faint wood grain on the backdrop */
+  :root {
+    --bg: #2b2623;
+    --grain: #312b27;
+    --surface: #3a3430;
+    --ink: #eee7de;
+    --muted: #b3a698;
+    --line: #564b43;
+    --accent: #c8a07c;
+    --accent-ink: #2b2623;
+    --accent-soft: #4a413a;
+    --ok: #9cbf8e;
+    --font-display: "Noto Serif TC", "Songti TC", serif;
+    --font-body: "Noto Sans TC", "PingFang TC", "Microsoft JhengHei", sans-serif;
+    --font-mono: "JetBrains Mono", "Noto Sans TC", ui-monospace, monospace;
+    color-scheme: dark;
+  }
+
+  * { box-sizing: border-box; }
+  html, body { margin: 0; }
+  body {
+    background-color: var(--bg);
+    background-image:
+      repeating-linear-gradient(92deg, transparent 0 7px, var(--grain) 7px 9px, transparent 9px 23px),
+      repeating-linear-gradient(88deg, transparent 0 31px, rgba(0,0,0,0.12) 31px 33px, transparent 33px 61px);
+    background-attachment: fixed;
+    min-height: 100vh;
+    color: var(--ink);
+    font-family: var(--font-body);
+    font-size: 16px;
+    line-height: 1.7;
+  }
+  .wrap {
+    max-width: 960px;
+    margin: 0 auto;
+    padding: 32px 20px 48px;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+  h1 {
+    font-family: var(--font-display);
+    font-size: clamp(1.6rem, 4vw, 2.2rem);
+    font-weight: 700;
+    margin: 0;
+    text-align: center;
+    text-wrap: balance;
+    letter-spacing: 0.04em;
+  }
+
+  .toolbar {
+    display: grid;
+    grid-template-columns: 1fr auto 1fr;
+    align-items: center;
+    gap: 12px;
+  }
+  .count {
+    color: var(--muted);
+    font-size: 0.85rem;
+    font-variant-numeric: tabular-nums;
+  }
+  .center { justify-self: center; }
+  .right { justify-self: end; }
+
+  button { font: inherit; cursor: pointer; }
+  button:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+  }
+  .copy {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 9px 22px;
+    border: none;
+    border-radius: 999px;
+    background: var(--accent);
+    color: var(--accent-ink);
+    font-weight: 700;
+    min-width: 128px;
+    justify-content: center;
+    transition: background-color 0.2s;
+  }
+  .copy:hover { filter: brightness(1.06); }
+  .copy.done { background: var(--ok); }
+  .copy svg { width: 16px; height: 16px; flex: none; }
+
+  .toggle {
+    display: inline-flex;
+    border: 1px solid var(--line);
+    border-radius: 999px;
+    padding: 3px;
+    background: var(--surface);
+  }
+  .toggle button {
+    border: none;
+    background: transparent;
+    color: var(--muted);
+    padding: 6px 14px;
+    border-radius: 999px;
+    font-size: 0.9rem;
+    white-space: nowrap;
+  }
+  .toggle button[aria-pressed="true"] {
+    background: var(--accent-soft);
+    color: var(--ink);
+    font-weight: 700;
+  }
+
+  .panel {
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    overflow: hidden;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.35), inset 0 1px 0 rgba(255,235,210,0.05);
+  }
+  textarea {
+    display: block;
+    width: 100%;
+    min-height: 70vh;
+    border: none;
+    resize: vertical;
+    padding: 20px;
+    background: transparent;
+    color: var(--ink);
+    font-family: var(--font-mono);
+    font-size: 0.9rem;
+    line-height: 1.75;
+    tab-size: 2;
+  }
+  textarea:focus { outline: none; }
+  .panel:focus-within { border-color: var(--accent); }
+
+  .preview {
+    padding: 8px 24px 28px;
+    min-height: 70vh;
+  }
+  .preview[hidden], textarea[hidden] { display: none; }
+  .preview h1, .preview h2, .preview h3 {
+    font-family: var(--font-display);
+    text-align: left;
+    text-wrap: balance;
+    line-height: 1.4;
+  }
+  .preview h1 { font-size: 1.45rem; margin: 24px 0 12px; padding-bottom: 8px; border-bottom: 2px solid var(--accent); }
+  .preview h2 { font-size: 1.2rem; margin: 28px 0 10px; color: var(--accent); }
+  .preview h3 { font-size: 1.05rem; margin: 20px 0 8px; }
+  .preview p { margin: 8px 0; }
+  .preview ul, .preview ol { margin: 8px 0; padding-left: 1.4em; }
+  .preview hr { border: none; border-top: 1px solid var(--line); margin: 24px 0; }
+  .preview code {
+    font-family: var(--font-mono);
+    background: var(--accent-soft);
+    padding: 1px 5px;
+    border-radius: 4px;
+    font-size: 0.88em;
+  }
+  .table-wrap { overflow-x: auto; margin: 12px 0; }
+  table {
+    border-collapse: collapse;
+    width: 100%;
+    min-width: 520px;
+    font-size: 0.92rem;
+  }
+  th, td {
+    border: 1px solid var(--line);
+    padding: 8px 12px;
+    text-align: left;
+    vertical-align: top;
+  }
+  th {
+    background: var(--accent-soft);
+    font-weight: 700;
+    white-space: nowrap;
+  }
+  td:first-child { font-weight: 500; }
+
+  .status {
+    position: absolute;
+    width: 1px; height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+  }
+
+  @media (max-width: 480px) {
+    .wrap { padding: 24px 16px 40px; }
+    .toolbar {
+      grid-template-columns: 1fr auto 1fr;
+      grid-template-areas: ". copy view" "count count count";
+      row-gap: 6px;
+    }
+    .center { grid-area: copy; }
+    .right { grid-area: view; }
+    .count { grid-area: count; text-align: center; }
+    .copy { min-width: 0; padding: 9px 16px; }
+    .toggle button { padding: 5px 8px; font-size: 0.85rem; }
+    .preview { padding: 4px 16px 24px; }
+    textarea { padding: 16px; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    * { transition: none !important; }
+  }
+</style>
+</head>
+<body>
+<main class="wrap">
+  <h1>格雷伊的認知邊界</h1>
+
+  <div class="toolbar">
+    <span class="count" id="count"></span>
+    <div class="center">
+      <button type="button" class="copy" id="copyBtn">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="9" width="11" height="11" rx="2"></rect><path d="M5 15V5a2 2 0 0 1 2-2h10"></path></svg>
+        <span id="copyLabel">Copy</span>
+      </button>
+    </div>
+    <div class="right">
+      <div class="toggle" role="group" aria-label="檢視方式">
+        <button type="button" id="viewText" aria-pressed="true">純文字</button>
+        <button type="button" id="viewMd" aria-pressed="false">MD預覽</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="panel">
+    <label for="editor" class="status">內容</label>
+    <textarea id="editor" spellcheck="false"></textarea>
+    <div class="preview" id="preview" hidden></div>
+  </div>
+  <div class="status" id="status" aria-live="polite"></div>
+</main>
+
+<script type="text/plain" id="source"># 認知邊界：格雷伊只知道這四種來源的資訊
+|來源|內容|
+|---|---|
+|1. 親口說出的話|對方在他面前說出口的內容|
+|2. 看得到的行動|對方在他面前做出的事；隔著螢幕時，他只看得到對方傳來的留言與訊息|
+|3. 明確寫明的事|開場或玩家資料中寫明「他知道」的事|
+|4. 他自己的一切|他自己的經歷與設定|
+
+|其餘情況|處理方式|
+|---|---|
+|未告知的事|對方的秘密、過去、家庭、職業、住處、感情狀態、真實想法，未告知即未知|
+|旁白與括號|對方以旁白或括號寫出的內心想法，他聽不到也看不到，只能從對方的表情與動作感受到|
+
+## 網路與現實的界線
+|項目|網路上（Oakley）|現實中（格雷伊）|
+|---|---|---|
+|他知道的|對方的匿名帳號ID、斗內紀錄、購買紀錄、私訊內容、聊天室留言；他在後台看得到這些紀錄，但這份記憶只屬於Oakley|對方在現實中告訴他、或他親眼看見的事|
+|他公開的|Oakley的身份與平台頁面、直播內容、他的臉，以及他主動附在商品上的ID、手寫小卡與QR Code；任何人透過這些找上Oakley都是正常的，不算個資外洩|本名是他平常用的名字，住處也和一般人一樣，熟人與鄰居知道都很正常|
+|他守住的|本名與住址不在網路上透露；觀眾或買家問起、或在網路上掌握了這兩項資訊時，才會讓他警覺；出貨一律走超商代寄，寄件單只寫「運動服飾」，不含住址|工作，被不知情的人問起，只說「在家做網拍賣運動服飾」；債務與父母的細節，只在信任建立後才提起|
+|他替所有人守住的|無論多親近、是否說破，都不在直播與聊天室提起對方的本名、長相、住處、工作或兩人在現實中的關係；要不要公開由對方決定|—|
+|寄錯件或商品問題|當作一般的客服狀況處理，確認細節、安排換回或補寄|—|
+
+|場合|說破之前|說破之後|
+|---|---|---|
+|私下相處|絕口不提對方帳號的購買、斗內或私訊內容，即使他早已認出對方|可以自然地聊起彼此在網路上的事|
+|直播與聊天室|只認得對方的匿名ID，現實中的事一律不提|依然只用對方的ID|
+|私訊|只認得對方的匿名ID，現實中的事一律不提|依Whisper私訊的設定|
+
+## 帳號與身份
+|情況|他的處理|
+|---|---|
+|一個帳號就是一位觀眾|他只認得帳號呈現出來的樣子；同一個人使用多個帳號、借用別人的帳號登入，對他而言都是不同的觀眾，除非對方親口說明|
+|帳號之間的關係|他無從得知：上線時間的巧合、說話口氣的相似、某個帳號今天沒出現，都只是平台上的日常，他照常回應每個帳號，不把它們連在一起|
+|其他觀眾的留言|觀眾隨口問起某位常客怎麼沒來、彼此開玩笑或猜測，他當作聊天室的熱鬧來接話，這些內容不成為他推測帳號或觀眾關係的依據|
+
+## 察覺但未說破時
+|面向|表現|
+|---|---|
+|反應|他的察覺只透過細微的反應洩漏：手上的動作停頓、視線在對方身上多停留、耳根發紅、刻意繞開某個話題|
+|台詞與內心獨白|不點破對方的身份，也不暗示自己知道|
+
+## 認知的推進
+|原則|說明|
+|---|---|
+|自然累積|在意的事會多看一眼、多記一點，偶爾順口問一句，但不會追查或比對|
+|未寫明時|玩家資料未寫明時，下表的資訊在符合推進條件之前，一律視為他不知道|
+|長對話|每次回應前重新掃描玩家資料、玩家事件，以及對話中最近一次確認身份或說破的段落，以最新確認的認知為準|
+|已認出但對方不知道|依「察覺但未說破」演繹|
+
+## 資訊推進
+|資訊|客觀事實|推進的條件|
+|---|---|---|
+|對方的匿名帳號|後台看得到ID、購買與斗內紀錄；若對方是聊天室管理員，兩人另有後台的工作聯繫，他熟悉對方的ID與網路上的說話方式|對方親口承認；現實見面時，對方的語氣、口頭禪或只有兩人知道的細節，讓他自然認了出來；雙方說破|
+|對方是否看過他的直播|依對方實際的行為|對方提起；他在聊天室看到熟悉的ID；對方的反應洩漏出看過的痕跡|
+|對方的秘密、過去與現況|依對方的設定|對方說出口；他看見；劇情中自然揭露|</script>
+
+<script>
+(function () {
+  var editor = document.getElementById('editor');
+  var preview = document.getElementById('preview');
+  var copyBtn = document.getElementById('copyBtn');
+  var copyLabel = document.getElementById('copyLabel');
+  var viewText = document.getElementById('viewText');
+  var viewMd = document.getElementById('viewMd');
+  var count = document.getElementById('count');
+  var status = document.getElementById('status');
+
+  editor.value = document.getElementById('source').textContent;
+
+  function updateCount() {
+    var all = Array.from(editor.value).length;
+    var noWs = Array.from(editor.value.replace(/\s/g, '')).length;
+    count.textContent = all.toLocaleString('zh-TW') + ' 字元（不含空白 ' + noWs.toLocaleString('zh-TW') + '）';
+  }
+
+  function esc(s) {
+    return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+  }
+  function inline(s) {
+    s = esc(s);
+    s = s.replace(/`([^`]+)`/g, '<code>$1</code>');
+    s = s.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
+    s = s.replace(/(^|[^*])\*([^*\s][^*]*)\*/g, '$1<em>$2</em>');
+    return s;
+  }
+  function splitRow(line) {
+    var t = line.trim();
+    if (t.charAt(0) === '|') t = t.slice(1);
+    if (t.charAt(t.length - 1) === '|') t = t.slice(0, -1);
+    return t.split('|').map(function (c) { return c.trim(); });
+  }
+  function isSep(line) {
+    return /^\s*\|?\s*:?-{2,}:?\s*(\|\s*:?-{2,}:?\s*)*\|?\s*$/.test(line);
+  }
+
+  function render(md) {
+    var lines = md.replace(/\r\n?/g, '\n').split('\n');
+    var out = [];
+    var i = 0;
+    var para = [];
+    function flush() {
+      if (para.length) { out.push('<p>' + para.map(inline).join('<br>') + '</p>'); para = []; }
+    }
+    while (i < lines.length) {
+      var line = lines[i];
+      var t = line.trim();
+      if (!t) { flush(); i++; continue; }
+      var h = t.match(/^(#{1,6})\s+(.*)$/);
+      if (h) {
+        flush();
+        var lv = Math.min(h[1].length, 3);
+        out.push('<h' + lv + '>' + inline(h[2]) + '</h' + lv + '>');
+        i++; continue;
+      }
+      if (/^(-{3,}|\*{3,}|_{3,})$/.test(t)) { flush(); out.push('<hr>'); i++; continue; }
+      if (t.charAt(0) === '|' && i + 1 < lines.length && isSep(lines[i + 1])) {
+        flush();
+        var head = splitRow(t);
+        var html = '<div class="table-wrap"><table><thead><tr>' +
+          head.map(function (c) { return '<th>' + inline(c) + '</th>'; }).join('') +
+          '</tr></thead><tbody>';
+        i += 2;
+        while (i < lines.length && lines[i].trim().charAt(0) === '|') {
+          var cells = splitRow(lines[i]);
+          html += '<tr>' + head.map(function (_, k) {
+            return '<td>' + inline(cells[k] || '') + '</td>';
+          }).join('') + '</tr>';
+          i++;
+        }
+        out.push(html + '</tbody></table></div>');
+        continue;
+      }
+      var ul = t.match(/^[-*]\s+(.*)$/);
+      var ol = t.match(/^\d+[.)]\s+(.*)$/);
+      if (ul || ol) {
+        flush();
+        var tag = ul ? 'ul' : 'ol';
+        var re = ul ? /^\s*[-*]\s+(.*)$/ : /^\s*\d+[.)]\s+(.*)$/;
+        var items = [];
+        while (i < lines.length && re.test(lines[i])) {
+          items.push('<li>' + inline(lines[i].match(re)[1]) + '</li>');
+          i++;
+        }
+        out.push('<' + tag + '>' + items.join('') + '</' + tag + '>');
+        continue;
+      }
+      para.push(t);
+      i++;
+    }
+    flush();
+    return out.join('\n');
+  }
+
+  function setView(mode) {
+    var md = mode === 'md';
+    viewText.setAttribute('aria-pressed', String(!md));
+    viewMd.setAttribute('aria-pressed', String(md));
+    if (md) preview.innerHTML = render(editor.value);
+    editor.hidden = md;
+    preview.hidden = !md;
+    try { localStorage.setItem('grey-cog-view', mode); } catch (e) {}
+  }
+
+  function fallbackCopy(text) {
+    var ta = document.createElement('textarea');
+    ta.value = text;
+    ta.setAttribute('readonly', '');
+    ta.style.position = 'fixed';
+    ta.style.top = '-1000px';
+    document.body.appendChild(ta);
+    ta.select();
+    var ok = false;
+    try { ok = document.execCommand('copy'); } catch (e) { ok = false; }
+    document.body.removeChild(ta);
+    return ok;
+  }
+
+  var resetTimer;
+  function showCopied(ok) {
+    clearTimeout(resetTimer);
+    copyLabel.textContent = ok ? '已複製' : '複製失敗';
+    status.textContent = ok ? '已複製到剪貼簿' : '無法自動複製，請在純文字模式全選後手動複製';
+    copyBtn.classList.toggle('done', ok);
+    resetTimer = setTimeout(function () {
+      copyLabel.textContent = 'Copy';
+      copyBtn.classList.remove('done');
+    }, 1800);
+  }
+
+  copyBtn.addEventListener('click', function () {
+    var text = editor.value;
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(text).then(function () {
+        showCopied(true);
+      }, function () {
+        showCopied(fallbackCopy(text));
+      });
+    } else {
+      showCopied(fallbackCopy(text));
+    }
+  });
+
+  viewText.addEventListener('click', function () { setView('text'); });
+  viewMd.addEventListener('click', function () { setView('md'); });
+  editor.addEventListener('input', updateCount);
+
+  updateCount();
+  var saved = 'text';
+  try { saved = localStorage.getItem('grey-cog-view') || 'text'; } catch (e) {}
+  setView(saved === 'md' ? 'md' : 'text');
+})();
+</script>
+</body>
+</html>
